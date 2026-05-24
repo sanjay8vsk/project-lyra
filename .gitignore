@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node.js
+node_modules/
+
+# Environment variables
+.env
+
+# Uploads
+uploads/
+
+# macOS
+.DS_Store
+
+# Next.js
+.next/
+
+# VS Code
+.vscode/
