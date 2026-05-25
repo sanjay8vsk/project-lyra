@@ -22,12 +22,13 @@ async def ask_question(question: str):
 
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=3
+        n_results=2
     )
 
     context = "\n".join(results["documents"][0])
 
     prompt = f"""
+    You are an AI resume assistant.
     Answer the question using the context below.
 
     Context:
@@ -35,6 +36,8 @@ async def ask_question(question: str):
 
     Question:
     {question}
+
+    Provide a short and professional answer.
     """
 
     answer = ollama.chat(
@@ -49,5 +52,6 @@ async def ask_question(question: str):
 
     return {
         "question": question,
+        "retrieved_chunks": results["documents"][0],
         "answer": answer["message"]["content"]
     }

@@ -9,23 +9,26 @@ collection = client.get_or_create_collection(
 
 def store_chunks(chunks):
 
-    ids = [f"chunk_{i}" for i in range(len(chunks))]
+    ids = []
 
     embeddings = []
 
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
 
-        response = ollama.embed(
+        response = ollama.embeddings(
             model="nomic-embed-text",
-            input=chunk
+            prompt=chunk
         )
 
-        embeddings.append(response["embeddings"][0])
+        embedding = response["embedding"]
+
+        ids.append(f"chunk_{i}")
+        embeddings.append(embedding)
 
     collection.add(
         ids=ids,
-        documents=chunks,
-        embeddings=embeddings
+        embeddings=embeddings,
+        documents=chunks
     )
 
     return True
