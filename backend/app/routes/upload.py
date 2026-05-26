@@ -1,42 +1,38 @@
-from fastapi import APIRouter, UploadFile, File  # type: ignore
-from app.services.pdf_service import extract_text_from_pdf
-from app.services.chunk_service import chunk_text
-from pathlib import Path
-from app.services.embedding_service import store_chunks
-import shutil
+from fastapi import APIRouter, UploadFile, File # type: ignore
+from pypdf import PdfReader # type: ignore
+import os
 
 router = APIRouter()
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR = "uploads"
 
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-print("UPLOAD DIRECTORY:", UPLOAD_DIR)
+DOCUMENT_TEXT = ""
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_pdf(file: UploadFile = File(...)):
+    global DOCUMENT_TEXT
 
-    file_path = UPLOAD_DIR / file.filename
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
 
-    try:
-        extracted_text = extract_text_from_pdf(file_path)
+    # Extract PDF text
+    reader = PdfReader(file_path)
 
-        chunks = chunk_text(extracted_text)
+    text = ""
 
-        store_chunks(chunks)
+    for page in reader.pages:
+        extracted = page.extract_text()
 
-        return {
-            "filename": file.filename,
-            "message": "File uploaded successfully",
-            "total_chunks": len(chunks),
-            "sample_chunk": chunks[0]
-        }
+        if extracted:
+            text += extracted + "\n"
 
-    except Exception as e:
-        return {
-            "error": str(e)
-        }
+    DOCUMENT_TEXT = text
+
+    return {
+        "message": "PDF uploaded successfully",
+        "text_length": len(DOCUMENT_TEXT)
+    }

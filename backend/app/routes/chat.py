@@ -1,59 +1,112 @@
 from fastapi import APIRouter # type: ignore
-import chromadb # type: ignore
-import ollama # type: ignore
+from pydantic import BaseModel # type: ignore
+from openai import OpenAI # type: ignore
+from dotenv import load_dotenv # type: ignore
+import os
+
+import app.routes.upload as upload_module
+
+load_dotenv()
 
 router = APIRouter()
 
-client = chromadb.Client()
-
-collection = client.get_or_create_collection(
-    name="lyra_notes"
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.getenv("OPENROUTER_API_KEY")
 )
 
-@router.post("/ask")
-async def ask_question(question: str):
+class ChatRequest(BaseModel):
+    question: str
 
-    response = ollama.embed(
-        model="nomic-embed-text",
-        input=question
-    )
 
-    query_embedding = response["embeddings"][0]
+@router.post("/chat")
+async def chat(request: ChatRequest):
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=2
-    )
+    try:
 
-    context = "\n".join(results["documents"][0])
+        document_context = upload_module.DOCUMENT_TEXT
 
-    prompt = f"""
-    You are an AI resume assistant.
-    Answer only from the provided resume context.
-    If answer is not found, say:
-    "I could not find that information in the resume."
+        completion = client.chat.completions.create(
 
-    Context:
-    {context}
+            model="openai/gpt-oss-20b:free",
 
-    Question:
-    {question}
+            messages=[
 
-    Provide a short and professional and concise answer.
-    """
+                {
+                    "role": "system",
+                    "content": f"""
+                    You are Lyra AI — an advanced AI Learning Intelligence Assistant similar to ChatGPT.
 
-    answer = ollama.chat(
-        model="llama3",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+                    Your Personality:
+                    - Professional, helpful, and precise
+                    - Always provides accurate and concise answers
+                    - Uses a modern and conversational tone
+                    - Provides clear explanations of concepts
+                    - Respond like ChatGPT
+                    - Be intelligent, precise, modern, and conversational
+                    - Use clean formatting
+                    - Use bullet points when useful
+                    - Keep answers concise but valuable
+                    - Explain concepts clearly
+                    - Avoid generic filler text
+                    - If document context exists, answer ONLY from that context
+                    - If information is missing, say it honestly
+                    - Help with resumes, PDFs, research papers, notes, and learning
+                    - Sound natural and human
 
-    return {
-        "question": question,
-        "retrieved_chunks": results["documents"][0],
-        "answer": answer["message"]["content"]
-    }
+                    Your responsibilities:
+
+                    - Analyze uploaded PDFs and documents
+                    - Answer strictly from document context when available
+                    - Summarize intelligently instead of copying raw text
+                    - Explain concepts clearly
+                    - Help with resumes, notes, research papers, and learning
+                    - Format responses cleanly
+
+                    Response rules:
+
+                    - Never dump extracted OCR text directly
+                    - Never repeat headings unnecessarily
+                    - Write natural summaries
+                    - Use bullets only when useful
+                    - Keep responses readable
+                    - If context is missing, say so honestly
+                    - Do not hallucinate fake information
+                    - Sound like a premium AI assistant
+
+                    When summarizing resumes:
+
+                    - Write a professional paragraph summary
+                    - Mention education, technical skills, projects, and strengths naturally
+                    - Keep it concise and polished
+
+
+                    DOCUMENT CONTEXT:
+                    {document_context}
+                    """
+                },
+
+                {
+                    "role": "user",
+                    "content": request.question
+                }
+
+            ],
+
+            temperature=0.5,
+            max_tokens=1000
+        )
+
+        answer = completion.choices[0].message.content.strip()
+
+        return {
+            "response": answer
+        }
+
+    except Exception as e:
+
+        print("CHAT ERROR:", e)
+
+        return {
+            "response": f"Backend Error: {str(e)}"
+        }
