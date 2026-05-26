@@ -1,7 +1,7 @@
 import ollama # type: ignore
 import chromadb # type: ignore
 
-client = chromadb.Client()
+client = chromadb.PersistentClient(path="./chroma_db")
 
 collection = client.get_or_create_collection(
     name="lyra_notes"

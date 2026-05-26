@@ -29,7 +29,9 @@ async def ask_question(question: str):
 
     prompt = f"""
     You are an AI resume assistant.
-    Answer the question using the context below.
+    Answer only from the provided resume context.
+    If answer is not found, say:
+    "I could not find that information in the resume."
 
     Context:
     {context}
@@ -37,7 +39,7 @@ async def ask_question(question: str):
     Question:
     {question}
 
-    Provide a short and professional answer.
+    Provide a short and professional and concise answer.
     """
 
     answer = ollama.chat(
